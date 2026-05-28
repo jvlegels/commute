@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Commute Advisor · Gentbrugge ↔ Schuman</title>
+  <style>
+    :root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { margin: 0; background: #f5f7fb; color: #1f2937; }
+    .wrap { max-width: 840px; margin: 0 auto; padding: 16px; }
+    .card { background:#fff; border-radius:14px; padding:16px; box-shadow:0 4px 14px rgba(0,0,0,.08); margin-bottom:14px; }
+    h1 { font-size:1.35rem; margin:0 0 8px; }
+    .row { display:flex; gap:10px; flex-wrap: wrap; align-items: end; }
+    input, button { font-size:1rem; padding:10px 12px; border-radius:10px; border:1px solid #d1d5db; }
+    button { background:#2563eb; color:#fff; border:none; font-weight:600; cursor:pointer; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    .grid { display:grid; grid-template-columns:1fr; gap:10px; }
+    @media(min-width:760px){ .grid { grid-template-columns:1fr 1fr; } }
+    .option h3 { margin:0 0 8px; }
+    .muted { color:#6b7280; }
+    .good { color:#065f46; }
+    .warn { color:#92400e; }
+    .bad { color:#991b1b; }
+    ul { margin:6px 0 0 18px; padding:0; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <h1>Commute Advisor: Gentbrugge ↔ Berlaymont (Schuman)</h1>
+      <p class="muted">Compares car vs train+metro for both morning and evening commute, including live weather and your 07:50 train status.</p>
+      <div class="row">
+        <div>
+          <label for="leaveTime">When will you leave office?</label><br>
+          <input id="leaveTime" type="time" value="17:30" required>
+        </div>
+        <button id="runBtn">Get recommendation</button>
+      </div>
+    </section>
+
+    <section id="status" class="card muted">Fill in your expected evening departure and tap “Get recommendation”.</section>
+    <section id="results" class="grid"></section>
+    <section id="recommendation" class="card" style="display:none"></section>
+  </main>
+
+<script>
+const holidayRanges = [
+  ["2026-01-01","2026-01-04"], ["2026-02-16","2026-02-22"], ["2026-04-06","2026-04-19"],
+  ["2026-05-14","2026-05-17"], ["2026-07-01","2026-08-31"], ["2026-11-02","2026-11-08"], ["2026-12-21","2027-01-03"]
+];
+
+const inHoliday = (d)=>holidayRanges.some(([s,e])=>d>=new Date(s+"T00:00:00")&&d<=new Date(e+"T23:59:59"));
+
+function trafficMultiplier(now, leave){
+  const wd = now.getDay(); // 0 Sun
+  let morning=1.0, evening=1.0; const notes=[];
+  if (wd>=1 && wd<=5){ morning+=0.35; evening+=0.2; notes.push("weekday baseline traffic"); }
+  if ([2,3,4].includes(wd)){ morning+=0.1; notes.push("midweek pressure"); }
+  if (inHoliday(now)){ morning-=0.2; evening-=0.15; notes.push("school holiday relief"); }
+  if (leave >= "17:00"){ evening+=0.25; notes.push("peak evening departure"); }
+  else if (leave <= "16:00"){ evening-=0.1; notes.push("early departure"); }
+  return { morning:Math.max(.7,morning), evening:Math.max(.75,evening), notes };
+}
+
+async function fetchWeatherFactor(){
+  try{
+    const u="https://api.open-meteo.com/v1/forecast?latitude=51.04&longitude=3.77&current=temperature_2m,precipitation,rain,wind_speed_10m";
+    const r=await fetch(u); const data=await r.json();
+    const c=data.current||{}; const rain=(+c.rain||0)+(+c.precipitation||0); const wind=+c.wind_speed_10m||0;
+    let penalty=0; const reasons=[];
+    if(rain>=1){ penalty+=0.8; reasons.push("rain"); }
+    else if(rain>0){ penalty+=0.4; reasons.push("light rain"); }
+    if(wind>=30){ penalty+=0.4; reasons.push("windy"); }
+    return { penalty, note: reasons.length?`Weather currently: ${reasons.join(", ")}.`:"Weather currently mild." };
+  }catch{ return { penalty:0, note:"Weather data unavailable." }; }
+}
+
+async function fetchTrainStatus(){
+  try{
+    const now=new Date();
+    const date=`${String(now.getDate()).padStart(2,'0')}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getFullYear()).slice(-2)}`;
+    const q=new URLSearchParams({from:"Gentbrugge",to:"Brussel-Centraal",date,time:"0750",timesel:"departure",format:"json",lang:"en"});
+    const r=await fetch(`https://api.irail.be/connections/?${q}`); const data=await r.json();
+    const conn=(data.connection||[])[0]; if(!conn) throw new Error();
+    const dep=conn.departure||{}; const delay=Math.round((+dep.delay||0)/60); const cancelled=dep.canceled==="1";
+    let message="On time"; if(cancelled) message="Cancelled"; else if(delay>0) message=`Delayed by ${delay} min`;
+    return { delay, cancelled, message };
+  }catch{ return { delay:0, cancelled:false, message:"Live train data unavailable." }; }
+}
+
+function optionCard(opt){
+  const notes=opt.notes.map(n=>`<li>${n}</li>`).join("");
+  return `<section class="card option"><h3>${opt.mode}</h3>
+    <div>Morning: <strong>${opt.morning}</strong> min</div>
+    <div>Evening: <strong>${opt.evening}</strong> min</div>
+    <div>Daily total: <strong>${opt.total}</strong> min</div>
+    <div>Comfort: <strong>${opt.comfort.toFixed(1)}</strong>/10</div>
+    <div>Reliability: <strong>${opt.reliability.toFixed(1)}</strong>/10</div>
+    <div>Score: <strong>${opt.score.toFixed(2)}</strong></div>
+    <ul>${notes}</ul></section>`;
+}
+
+async function run(){
+  const leave = document.getElementById('leaveTime').value;
+  if(!leave){ alert('Please pick a time'); return; }
+  const btn=document.getElementById('runBtn'); btn.disabled=true;
+  document.getElementById('status').textContent='Loading live weather and train status...';
+
+  const [w,t] = await Promise.all([fetchWeatherFactor(), fetchTrainStatus()]);
+  const now=new Date();
+  const tm=trafficMultiplier(now, leave);
+
+  const car={ mode:"Car", morning:Math.round(52*tm.morning), evening:Math.round(44*tm.evening), comfort:8.4+w.penalty, reliability:6.2-(tm.morning-1)*1.5, notes:[w.note,...tm.notes] };
+  const tr={ mode:"Train + metro", morning:63+Math.max(0,t.delay), evening:58+(leave>="17:30"?5:0), comfort:6.0-w.penalty, reliability:6.8, notes:[t.message,"07:50 Gentbrugge train monitored."] };
+  if (t.cancelled){ tr.reliability -=3.5; tr.notes.push("Cancellation detected for your regular train."); }
+  else if (t.delay>=10){ tr.reliability -=1.8; tr.notes.push("Major morning delay on the selected train."); }
+  else if (t.delay>0){ tr.reliability -=0.8; }
+
+  [car,tr].forEach(o=>{ o.total=o.morning+o.evening; o.score=(10-o.total/20)*0.55 + o.comfort*0.2 + o.reliability*0.25; });
+
+  document.getElementById('status').innerHTML = `<strong>Live train check:</strong> ${t.message}`;
+  document.getElementById('results').innerHTML = optionCard(car)+optionCard(tr);
+
+  const rec = car.score>=tr.score?car:tr; const other = rec===car?tr:car;
+  const recommendation = document.getElementById('recommendation');
+  recommendation.style.display='block';
+  recommendation.innerHTML = `<h3>Recommendation: ${rec.mode}</h3><p>Score advantage: ${(Math.abs(car.score-tr.score)).toFixed(2)} points vs ${other.mode}.</p>`;
+  btn.disabled=false;
+}
+
+document.getElementById('runBtn').addEventListener('click', run);
+</script>
+</body>
+</html>
