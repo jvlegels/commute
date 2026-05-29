@@ -5,23 +5,19 @@ A mobile-friendly web app to help decide each morning between:
 - **Train + metro** (Gentbrugge → Brussel-Centraal + metro to Schuman)
 
 ## What it does
-When you open the app, it asks what time you expect to leave the office in the evening. After you tap **Update dashboard**, it first shows a **live morning overview**, then gives the analysis, score and recommendation for the full day commute.
+When you open the app, it asks what time you expect to leave the office in the evening. It then compares both options for the **full day commute** (morning + evening), adds a **visual dashboard**, and gives a recommendation.
 
 The comparison includes:
-- All current Gentbrugge → Brussel-Centraal train options leaving between **07:30 and 08:30**
-- Estimated train departure and arrival times, delay/cancellation status and the train used for scoring
-- A current car-time estimate for Gentbrugge → Berlaymont based on the app traffic model
-- An embedded Google Maps driving route plus a one-tap link to open live traffic in Google Maps
 - Typical weekday and evening traffic effects
 - School holiday effect
 - Current weather (comfort impact)
+- Live check of your regular **07:50 Gentbrugge** train (delay/cancellation)
 
-## Morning overview and analysis dashboard
-The app is ordered so the practical information appears first:
-1. **Train board**: scheduled departure, estimated departure, scheduled arrival, estimated arrival, trip duration, status and platform for trains between 07:30 and 08:30.
-2. **Car + map panel**: the current model estimate by car and a Google Maps route section. Open the map link for Google’s live traffic details and delay locations.
-3. **Recommendation**: the suggested mode with confidence and score advantage.
-4. **Analysis dashboard**: bar comparisons for total time, morning time, evening time and score, plus a summary table showing which mode wins each metric.
+## Visual dashboard
+After you tap **Compare my commute**, the app renders:
+- Bar comparisons for total time, morning time, and evening time
+- Bar comparisons for comfort, reliability, and overall score
+- A summary table showing which mode wins each metric
 
 This makes the trade-offs much easier to read at a glance on phone.
 
