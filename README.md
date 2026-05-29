@@ -41,7 +41,6 @@ Then open `http://localhost:8000`.
 4. Save and wait for deployment.
 5. Open the generated URL from your phone and add it to your home screen if desired.
 
-
 ## Recommended: GitHub Actions Pages deployment
 For more predictable updates, use the included workflow at `.github/workflows/pages.yml`.
 
@@ -50,7 +49,6 @@ For more predictable updates, use the included workflow at `.github/workflows/pa
 3. Push to `main` or `master`; the workflow will deploy automatically on either default branch.
 
 This avoids many branch-source mismatch issues and makes deployments easier to trace in the Actions tab.
-
 
 ## Avoiding merge conflicts
 If GitHub reports conflicts after you merge another PR first, update this branch from your default branch and keep the latest `index.html`, `README.md`, and `.github/workflows/pages.yml` from this branch. This PR intentionally keeps the app as a single static `index.html` file so the GitHub Pages deployment has very few moving parts.
@@ -61,11 +59,12 @@ If you merged a PR but still see the old app, this is usually a deployment or ca
 1. **Check the branch Pages is publishing from** in `Settings → Pages` (it must match the branch you merged into, often `main`).
 2. **Wait for Pages rebuild** (usually 1–5 minutes).
 3. Open the site in a **private/incognito tab** or force refresh on phone.
-4. Add a cache-busting suffix to the URL once, e.g. `?v=2026-05-28-2`.
-5. Confirm you can see `Web app version 2026-05-28-2` at the top of the page.
+4. Add a cache-busting suffix to the URL once, e.g. `?v=2026-05-29-1`.
+5. Confirm you can see `Web app version 2026-05-29-1` at the top of the page.
 
 If that version is visible, the new HTML is deployed. The current HTML also includes no-cache metadata to reduce stale browser caching.
 
 ## Notes
 - If live APIs are temporarily unavailable, the app still produces a recommendation with fallback assumptions.
+- Google Maps live traffic is shown through the Maps route/link; the app does not require a paid Google Maps API key.
 - `commute_advisor.py` remains available as the CLI prototype; `index.html` is the recommended app for daily use.
